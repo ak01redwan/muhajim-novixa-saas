@@ -1,0 +1,76 @@
+import React from 'react';
+import { LANGUAGES, Language } from '../i18n/languages';
+import { TranslationKeys } from '../i18n/translations';
+
+interface FooterProps {
+  currentLang: Language;
+  onSelectLang: (lang: Language) => void;
+  t: TranslationKeys;
+}
+
+export const Footer: React.FC<FooterProps> = ({ currentLang, onSelectLang, t }) => {
+  return (
+    <footer className="mt-20 border-t border-slate-800/80 bg-slate-950/80 backdrop-blur-xl py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-7xl mx-auto space-y-8">
+        
+        {/* Top Footer: Brand Info & Novixa Ecosystem */}
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+          <div>
+            <div className="text-lg font-black gradient-text">{t.appName}</div>
+            <p className="text-xs text-slate-400 mt-1 max-w-md">
+              {t.tagline}
+            </p>
+          </div>
+          
+          <div className="text-xs text-slate-400 font-mono">
+            <span>Powered by </span>
+            <a
+              href="https://novixa.dev"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-cyan-400 font-bold hover:underline"
+            >
+              Novixa Digital Engineering
+            </a>
+          </div>
+        </div>
+
+        {/* 20-Language Link Matrix for SEO Crawlers */}
+        <div className="pt-6 border-t border-slate-800/60">
+          <div className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">
+            Supported Global Languages (20 Most Spoken)
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-2 text-xs">
+            {LANGUAGES.map((lang) => (
+              <button
+                key={lang.code}
+                onClick={() => onSelectLang(lang)}
+                className={`text-start px-2.5 py-1.5 rounded-lg transition-colors flex items-center gap-2 ${
+                  currentLang.code === lang.code
+                    ? 'bg-cyan-950 text-cyan-300 font-bold border border-cyan-800/60'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900'
+                }`}
+              >
+                <span>{lang.flag}</span>
+                <span>{lang.nativeName}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Copyright & Disclaimer */}
+        <div className="pt-6 border-t border-slate-800/60 flex flex-col sm:flex-row justify-between items-center text-xs text-slate-500 gap-2">
+          <div>{t.footerRights}</div>
+          <div className="flex items-center gap-4">
+            <span className="hover:text-slate-400 cursor-pointer">Privacy Policy</span>
+            <span>•</span>
+            <span className="hover:text-slate-400 cursor-pointer">Terms of Service</span>
+            <span>•</span>
+            <span className="hover:text-slate-400 cursor-pointer">Security Whitepaper</span>
+          </div>
+        </div>
+
+      </div>
+    </footer>
+  );
+};
