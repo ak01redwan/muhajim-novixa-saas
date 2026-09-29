@@ -7,6 +7,8 @@ export interface WorkerInputMessage {
   targetHeight: number;
   format: 'image/webp' | 'image/jpeg' | 'image/png';
   quality: number; // 0.1 to 1.0
+  fitMode?: 'stretch' | 'contain' | 'cover';
+  backgroundColor?: string;
 }
 
 export interface WorkerOutputMessage {
@@ -22,11 +24,18 @@ export interface WorkerOutputMessage {
 }
 
 self.onmessage = async (e: MessageEvent<WorkerInputMessage>) => {
-  const { id, file, targetWidth, targetHeight, format, quality } = e.data;
+  const { id, file, targetWidth, targetHeight, format, quality, fitMode = 'stretch', backgroundColor = '#FFFFFF' } = e.data;
 
   try {
     const originalSize = file.size;
-    const imageBitmap = await createImageBitmap(file);
+    let imageBitmap: ImageBitmap;
+
+    // Use EXIF orientation if supported by browser
+    try {
+      imageBitmap = await createImageBitmap(file, { imageOrientation: 'from-image' });
+    } catch {
+      imageBitmap = await createImageBitmap(file);
+    }
 
     const canvas = new OffscreenCanvas(targetWidth, targetHeight);
     const ctx = canvas.getContext('2d', { alpha: format !== 'image/jpeg' });
@@ -39,12 +48,35 @@ self.onmessage = async (e: MessageEvent<WorkerInputMessage>) => {
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = 'high';
 
-    if (format === 'image/jpeg') {
-      ctx.fillStyle = '#FFFFFF';
+    if (format === 'image/jpeg' || (fitMode === 'contain' && backgroundColor)) {
+      ctx.fillStyle = backgroundColor;
       ctx.fillRect(0, 0, targetWidth, targetHeight);
     }
 
-    ctx.drawImage(imageBitmap, 0, 0, targetWidth, targetHeight);
+    const srcW = imageBitmap.width;
+    const srcH = imageBitmap.height;
+
+    if (fitMode === 'cover') {
+      // Scale and center crop
+      const scale = Math.max(targetWidth / srcW, targetHeight / srcH);
+      const renderW = srcW * scale;
+      const renderH = srcH * scale;
+      const offsetX = (targetWidth - renderW) / 2;
+      const offsetY = (targetHeight - renderH) / 2;
+      ctx.drawImage(imageBitmap, offsetX, offsetY, renderW, renderH);
+    } else if (fitMode === 'contain') {
+      // Scale and letterbox inside canvas
+      const scale = Math.min(targetWidth / srcW, targetHeight / srcH);
+      const renderW = srcW * scale;
+      const renderH = srcH * scale;
+      const offsetX = (targetWidth - renderW) / 2;
+      const offsetY = (targetHeight - renderH) / 2;
+      ctx.drawImage(imageBitmap, offsetX, offsetY, renderW, renderH);
+    } else {
+      // Direct stretch
+      ctx.drawImage(imageBitmap, 0, 0, targetWidth, targetHeight);
+    }
+
     imageBitmap.close();
 
     const blob = await canvas.convertToBlob({

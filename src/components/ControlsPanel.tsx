@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Sliders, Maximize2, Lock, Unlock, Layers, FileType, Zap } from 'lucide-react';
+import { Sliders, Maximize2, Lock, Unlock, Layers, FileType, Zap, Crop } from 'lucide-react';
 import { TranslationKeys } from '../i18n/translations';
 
 export interface ResizeOptions {
@@ -10,6 +10,7 @@ export interface ResizeOptions {
   lockAspect: boolean;
   format: 'image/webp' | 'image/jpeg' | 'image/png';
   quality: number; // 0.1 to 1.0
+  fitMode?: 'stretch' | 'contain' | 'cover';
 }
 
 interface ControlsPanelProps {
@@ -74,6 +75,7 @@ export const ControlsPanel: React.FC<ControlsPanelProps> = ({
       mode: 'preset',
       width: w,
       height: h,
+      fitMode: options.fitMode || 'cover',
     });
   };
 
@@ -208,54 +210,105 @@ export const ControlsPanel: React.FC<ControlsPanelProps> = ({
 
       {/* Mode 3: Presets Grid */}
       {options.mode === 'preset' && (
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
-          <button
-            onClick={() => applyPreset(1080, 1080)}
-            className="p-3 rounded-xl bg-slate-900/60 hover:bg-slate-800/80 border border-slate-800 text-start space-y-1 transition-all"
-          >
-            <div className="text-xs font-bold text-slate-200">{t.presetInstagramPost}</div>
-            <div className="text-[11px] font-mono text-cyan-400">1080 × 1080 px</div>
-          </button>
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+            <button
+              onClick={() => applyPreset(1080, 1080)}
+              className={`p-3 rounded-xl border text-start space-y-1 transition-all ${
+                options.width === 1080 && options.height === 1080
+                  ? 'bg-cyan-950/80 border-cyan-500/80 text-cyan-300'
+                  : 'bg-slate-900/60 hover:bg-slate-800/80 border-slate-800 text-slate-200'
+              }`}
+            >
+              <div className="text-xs font-bold">{t.presetInstagramPost}</div>
+              <div className="text-[11px] font-mono text-cyan-400">1080 × 1080 px</div>
+            </button>
 
-          <button
-            onClick={() => applyPreset(1080, 1920)}
-            className="p-3 rounded-xl bg-slate-900/60 hover:bg-slate-800/80 border border-slate-800 text-start space-y-1 transition-all"
-          >
-            <div className="text-xs font-bold text-slate-200">{t.presetInstagramStory}</div>
-            <div className="text-[11px] font-mono text-cyan-400">1080 × 1920 px</div>
-          </button>
+            <button
+              onClick={() => applyPreset(1080, 1920)}
+              className={`p-3 rounded-xl border text-start space-y-1 transition-all ${
+                options.width === 1080 && options.height === 1920
+                  ? 'bg-cyan-950/80 border-cyan-500/80 text-cyan-300'
+                  : 'bg-slate-900/60 hover:bg-slate-800/80 border-slate-800 text-slate-200'
+              }`}
+            >
+              <div className="text-xs font-bold">{t.presetInstagramStory}</div>
+              <div className="text-[11px] font-mono text-cyan-400">1080 × 1920 px</div>
+            </button>
 
-          <button
-            onClick={() => applyPreset(1280, 720)}
-            className="p-3 rounded-xl bg-slate-900/60 hover:bg-slate-800/80 border border-slate-800 text-start space-y-1 transition-all"
-          >
-            <div className="text-xs font-bold text-slate-200">{t.presetYoutubeThumb}</div>
-            <div className="text-[11px] font-mono text-cyan-400">1280 × 720 px</div>
-          </button>
+            <button
+              onClick={() => applyPreset(1280, 720)}
+              className={`p-3 rounded-xl border text-start space-y-1 transition-all ${
+                options.width === 1280 && options.height === 720
+                  ? 'bg-cyan-950/80 border-cyan-500/80 text-cyan-300'
+                  : 'bg-slate-900/60 hover:bg-slate-800/80 border-slate-800 text-slate-200'
+              }`}
+            >
+              <div className="text-xs font-bold">{t.presetYoutubeThumb}</div>
+              <div className="text-[11px] font-mono text-cyan-400">1280 × 720 px</div>
+            </button>
 
-          <button
-            onClick={() => applyPreset(1500, 500)}
-            className="p-3 rounded-xl bg-slate-900/60 hover:bg-slate-800/80 border border-slate-800 text-start space-y-1 transition-all"
-          >
-            <div className="text-xs font-bold text-slate-200">{t.presetTwitterHeader}</div>
-            <div className="text-[11px] font-mono text-cyan-400">1500 × 500 px</div>
-          </button>
+            <button
+              onClick={() => applyPreset(1500, 500)}
+              className={`p-3 rounded-xl border text-start space-y-1 transition-all ${
+                options.width === 1500 && options.height === 500
+                  ? 'bg-cyan-950/80 border-cyan-500/80 text-cyan-300'
+                  : 'bg-slate-900/60 hover:bg-slate-800/80 border-slate-800 text-slate-200'
+              }`}
+            >
+              <div className="text-xs font-bold">{t.presetTwitterHeader}</div>
+              <div className="text-[11px] font-mono text-cyan-400">1500 × 500 px</div>
+            </button>
 
-          <button
-            onClick={() => applyPreset(1000, 1000)}
-            className="p-3 rounded-xl bg-slate-900/60 hover:bg-slate-800/80 border border-slate-800 text-start space-y-1 transition-all"
-          >
-            <div className="text-xs font-bold text-slate-200">{t.presetEcommerceSquare}</div>
-            <div className="text-[11px] font-mono text-cyan-400">1000 × 1000 px</div>
-          </button>
+            <button
+              onClick={() => applyPreset(1000, 1000)}
+              className={`p-3 rounded-xl border text-start space-y-1 transition-all ${
+                options.width === 1000 && options.height === 1000
+                  ? 'bg-cyan-950/80 border-cyan-500/80 text-cyan-300'
+                  : 'bg-slate-900/60 hover:bg-slate-800/80 border-slate-800 text-slate-200'
+              }`}
+            >
+              <div className="text-xs font-bold">{t.presetEcommerceSquare}</div>
+              <div className="text-[11px] font-mono text-cyan-400">1000 × 1000 px</div>
+            </button>
 
-          <button
-            onClick={() => applyPreset(600, 600)}
-            className="p-3 rounded-xl bg-slate-900/60 hover:bg-slate-800/80 border border-slate-800 text-start space-y-1 transition-all"
-          >
-            <div className="text-xs font-bold text-slate-200">{t.presetGovDoc}</div>
-            <div className="text-[11px] font-mono text-cyan-400">600 × 600 px</div>
-          </button>
+            <button
+              onClick={() => applyPreset(600, 600)}
+              className={`p-3 rounded-xl border text-start space-y-1 transition-all ${
+                options.width === 600 && options.height === 600
+                  ? 'bg-cyan-950/80 border-cyan-500/80 text-cyan-300'
+                  : 'bg-slate-900/60 hover:bg-slate-800/80 border-slate-800 text-slate-200'
+              }`}
+            >
+              <div className="text-xs font-bold">{t.presetGovDoc}</div>
+              <div className="text-[11px] font-mono text-cyan-400">600 × 600 px</div>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Fit & Crop Mode Picker (Shown for custom or preset if aspect ratio may change) */}
+      {(options.mode === 'preset' || (options.mode === 'custom' && !options.lockAspect)) && (
+        <div className="space-y-2 pt-2 border-t border-slate-800">
+          <label className="block text-xs font-semibold text-slate-300 flex items-center gap-1.5">
+            <Crop className="w-3.5 h-3.5 text-cyan-400" />
+            <span>{t.fitModeLabel}</span>
+          </label>
+          <div className="flex p-1 bg-slate-950 rounded-xl border border-slate-800">
+            {(['cover', 'contain', 'stretch'] as const).map((mode) => (
+              <button
+                key={mode}
+                onClick={() => onChangeOptions({ ...options, fitMode: mode })}
+                className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all ${
+                  (options.fitMode || 'cover') === mode
+                    ? 'bg-slate-800 text-cyan-300 shadow-sm border border-slate-700'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                {mode === 'cover' ? t.fitModeCover : mode === 'contain' ? t.fitModeContain : t.fitModeStretch}
+              </button>
+            ))}
+          </div>
         </div>
       )}
 
@@ -279,7 +332,7 @@ export const ControlsPanel: React.FC<ControlsPanelProps> = ({
                     : 'text-slate-400 hover:text-slate-200'
                 }`}
               >
-                {fmt === 'image/webp' ? 'WEBP (⭐ Recommended)' : fmt === 'image/jpeg' ? 'JPG' : 'PNG'}
+                {fmt === 'image/webp' ? 'WEBP (⭐)' : fmt === 'image/jpeg' ? 'JPG' : 'PNG'}
               </button>
             ))}
           </div>

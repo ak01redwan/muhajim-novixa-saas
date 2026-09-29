@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">
+  <url>
+    <loc>https://muhajim.dev/</loc>
+    <lastmod>2026-09-30</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+    <xhtml:link rel="alternate" hreflang="ar" href="https://muhajim.dev/?lang=ar" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://muhajim.dev/?lang=en" />
+    <xhtml:link rel="alternate" hreflang="es" href="https://muhajim.dev/?lang=es" />
+    <xhtml:link rel="alternate" hreflang="fr" href="https://muhajim.dev/?lang=fr" />
+    <xhtml:link rel="alternate" hreflang="de" href="https://muhajim.dev/?lang=de" />
+    <xhtml:link rel="alternate" hreflang="tr" href="https://muhajim.dev/?lang=tr" />
+    <xhtml:link rel="alternate" hreflang="ur" href="https://muhajim.dev/?lang=ur" />
+    <xhtml:link rel="alternate" hreflang="fa" href="https://muhajim.dev/?lang=fa" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://muhajim.dev/" />
+  </url>
+</urlset>

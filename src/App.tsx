@@ -5,15 +5,29 @@ import { ControlsPanel, ResizeOptions } from './components/ControlsPanel';
 import { ResultPreview } from './components/ResultPreview';
 import { SeoSection } from './components/SeoSection';
 import { Footer } from './components/Footer';
-import { DEFAULT_LANGUAGE, Language } from './i18n/languages';
+import { DEFAULT_LANGUAGE, LANGUAGES, Language } from './i18n/languages';
 import { getTranslation } from './i18n/translations';
 import { WorkerInputMessage, WorkerOutputMessage } from './workers/image.worker';
+import { AlertCircle, X } from 'lucide-react';
 
 export function App() {
-  const [currentLang, setCurrentLang] = useState<Language>(DEFAULT_LANGUAGE);
+  const [currentLang, setCurrentLang] = useState<Language>(() => {
+    // Check URL query param ?lang=xx
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const langParam = params.get('lang');
+      if (langParam) {
+        const found = LANGUAGES.find((l) => l.code === langParam);
+        if (found) return found;
+      }
+    }
+    return DEFAULT_LANGUAGE;
+  });
+
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [originalWidth, setOriginalWidth] = useState<number>(0);
   const [originalHeight, setOriginalHeight] = useState<number>(0);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const [resizeOptions, setResizeOptions] = useState<ResizeOptions>({
     mode: 'percentage',
@@ -23,6 +37,7 @@ export function App() {
     lockAspect: true,
     format: 'image/webp',
     quality: 0.85,
+    fitMode: 'cover',
   });
 
   const [isProcessing, setIsProcessing] = useState(false);
@@ -57,7 +72,7 @@ export function App() {
           dataUrl,
         });
       } else {
-        alert(`Error processing image: ${error || 'Unknown error'}`);
+        setErrorMessage(error || 'Failed to process image. Please try another file.');
       }
     };
 
@@ -66,14 +81,23 @@ export function App() {
     };
   }, []);
 
-  // Update HTML dir attribute when language changes
+  // Update HTML dir & lang attributes and URL parameter when language changes
   useEffect(() => {
     document.documentElement.setAttribute('dir', currentLang.dir);
     document.documentElement.setAttribute('lang', currentLang.code);
+
+    const url = new URL(window.location.href);
+    if (currentLang.code === DEFAULT_LANGUAGE.code) {
+      url.searchParams.delete('lang');
+    } else {
+      url.searchParams.set('lang', currentLang.code);
+    }
+    window.history.replaceState({}, '', url.toString());
   }, [currentLang]);
 
   // Handle image load to extract dimensions
   const handleFileSelected = (file: File) => {
+    setErrorMessage(null);
     setSelectedFile(file);
     setProcessedResult(null);
 
@@ -98,6 +122,12 @@ export function App() {
 
       URL.revokeObjectURL(objectUrl);
     };
+
+    img.onerror = () => {
+      setErrorMessage('Failed to load image file. Please ensure it is a valid format.');
+      URL.revokeObjectURL(objectUrl);
+    };
+
     img.src = objectUrl;
   };
 
@@ -107,6 +137,7 @@ export function App() {
       return;
     }
 
+    setErrorMessage(null);
     setIsProcessing(true);
 
     const message: WorkerInputMessage = {
@@ -116,6 +147,7 @@ export function App() {
       targetHeight: resizeOptions.height,
       format: resizeOptions.format,
       quality: resizeOptions.quality,
+      fitMode: resizeOptions.fitMode,
     };
 
     workerRef.current.postMessage(message);
@@ -127,6 +159,7 @@ export function App() {
     }
     setSelectedFile(null);
     setProcessedResult(null);
+    setErrorMessage(null);
   };
 
   return (
@@ -154,6 +187,22 @@ export function App() {
             {t.privacySubtitle}
           </p>
         </div>
+
+        {/* In-App Error Notification Banner */}
+        {errorMessage && (
+          <div className="p-4 rounded-2xl bg-rose-950/60 border border-rose-800/80 text-rose-300 text-sm flex items-center justify-between shadow-lg">
+            <div className="flex items-center gap-2.5">
+              <AlertCircle className="w-5 h-5 text-rose-400 shrink-0" />
+              <span>{errorMessage}</span>
+            </div>
+            <button
+              onClick={() => setErrorMessage(null)}
+              className="text-rose-400 hover:text-rose-200 p-1"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        )}
 
         {/* Step 1: Dropzone (if no file chosen) */}
         {!selectedFile && (
