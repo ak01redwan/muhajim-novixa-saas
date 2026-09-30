@@ -275,7 +275,7 @@ export function App() {
         <div className="max-w-4xl mx-auto flex items-center justify-between text-xs text-slate-400">
           <span className="text-[10px] uppercase font-mono tracking-widest text-slate-600">Advertisement</span>
           <span className="font-semibold text-slate-300">⚡ Upgrade your digital presence with Novixa Solutions</span>
-          <a href="https://novixa.dev" target="_blank" rel="noopener noreferrer" className="text-cyan-400 hover:underline font-bold">
+          <a href="https://novixa-cyan.vercel.app/ar" target="_blank" rel="noopener noreferrer" className="text-cyan-400 hover:underline font-bold">
             Learn More ➔
           </a>
         </div>

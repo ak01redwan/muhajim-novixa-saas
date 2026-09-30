@@ -144,7 +144,7 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({
 
         {/* Novixa Enterprise Funnel */}
         <a
-          href="https://novixa.dev"
+          href="https://novixa-cyan.vercel.app/ar"
           target="_blank"
           rel="noopener noreferrer"
           className="glass-card rounded-2xl p-4 flex items-center gap-3 border border-slate-800 hover:border-cyan-500/40"

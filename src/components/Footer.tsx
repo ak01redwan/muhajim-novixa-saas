@@ -25,7 +25,7 @@ export const Footer: React.FC<FooterProps> = ({ currentLang, onSelectLang, t }) 
           <div className="text-xs text-slate-400 font-mono">
             <span>Powered by </span>
             <a
-              href="https://novixa.dev"
+              href="https://novixa-cyan.vercel.app/ar"
               target="_blank"
               rel="noopener noreferrer"
               className="text-cyan-400 font-bold hover:underline"
