@@ -8,6 +8,7 @@ import { Footer } from './components/Footer';
 import { DEFAULT_LANGUAGE, LANGUAGES, Language } from './i18n/languages';
 import { getTranslation } from './i18n/translations';
 import { WorkerInputMessage, WorkerOutputMessage } from './workers/image.worker';
+import { AdBanner } from './components/AdBanner';
 import { AlertCircle, X } from 'lucide-react';
 
 export function App() {
@@ -265,19 +266,20 @@ export function App() {
           />
         )}
 
+        {/* In-feed Ad Banner (Between processing/result and SEO) */}
+        <div className="pt-2">
+          <AdBanner slotType="in-feed" />
+        </div>
+
         {/* Programmatic SEO & Format Guide Section */}
         <SeoSection t={t} />
 
       </main>
 
-      {/* Sticky Bottom Ad Slot Placeholder (Core Web Vitals Optimized) */}
-      <div className="sticky bottom-0 z-40 bg-slate-900/90 backdrop-blur-md border-t border-slate-800 py-2.5 px-4 text-center">
-        <div className="max-w-4xl mx-auto flex items-center justify-between text-xs text-slate-400">
-          <span className="text-[10px] uppercase font-mono tracking-widest text-slate-600">Advertisement</span>
-          <span className="font-semibold text-slate-300">⚡ Upgrade your digital presence with Novixa Solutions</span>
-          <a href="https://novixa-cyan.vercel.app/ar" target="_blank" rel="noopener noreferrer" className="text-cyan-400 hover:underline font-bold">
-            Learn More ➔
-          </a>
+      {/* Sticky Bottom Ad Unit (Core Web Vitals Optimized) */}
+      <div className="sticky bottom-0 z-40 bg-slate-950/90 backdrop-blur-md border-t border-slate-800/80 p-2.5 text-center">
+        <div className="max-w-4xl mx-auto">
+          <AdBanner slotType="bottom-sticky" />
         </div>
       </div>
 
