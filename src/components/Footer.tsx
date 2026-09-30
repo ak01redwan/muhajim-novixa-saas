@@ -1,14 +1,16 @@
 import React from 'react';
 import { LANGUAGES, Language } from '../i18n/languages';
 import { TranslationKeys } from '../i18n/translations';
+import { ModalType } from './InfoModal';
 
 interface FooterProps {
   currentLang: Language;
   onSelectLang: (lang: Language) => void;
+  onOpenModal: (type: ModalType) => void;
   t: TranslationKeys;
 }
 
-export const Footer: React.FC<FooterProps> = ({ currentLang, onSelectLang, t }) => {
+export const Footer: React.FC<FooterProps> = ({ currentLang, onSelectLang, onOpenModal, t }) => {
   return (
     <footer className="mt-20 border-t border-slate-800/80 bg-slate-950/80 backdrop-blur-xl py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto space-y-8">
@@ -62,11 +64,26 @@ export const Footer: React.FC<FooterProps> = ({ currentLang, onSelectLang, t }) 
         <div className="pt-6 border-t border-slate-800/60 flex flex-col sm:flex-row justify-between items-center text-xs text-slate-500 gap-2">
           <div>{t.footerRights}</div>
           <div className="flex items-center gap-4">
-            <span className="hover:text-slate-400 cursor-pointer">Privacy Policy</span>
+            <button
+              onClick={() => onOpenModal('privacy')}
+              className="hover:text-cyan-400 transition-colors cursor-pointer"
+            >
+              Privacy Policy
+            </button>
             <span>•</span>
-            <span className="hover:text-slate-400 cursor-pointer">Terms of Service</span>
+            <button
+              onClick={() => onOpenModal('terms')}
+              className="hover:text-cyan-400 transition-colors cursor-pointer"
+            >
+              Terms of Service
+            </button>
             <span>•</span>
-            <span className="hover:text-slate-400 cursor-pointer">Security Whitepaper</span>
+            <button
+              onClick={() => onOpenModal('security')}
+              className="hover:text-cyan-400 transition-colors cursor-pointer"
+            >
+              Security Whitepaper
+            </button>
           </div>
         </div>
 

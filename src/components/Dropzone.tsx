@@ -1,20 +1,25 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { UploadCloud, Image as ImageIcon, ShieldAlert, Command } from 'lucide-react';
+import { UploadCloud, Image as ImageIcon, ShieldAlert, Command, Layers } from 'lucide-react';
 import { TranslationKeys } from '../i18n/translations';
 
 interface DropzoneProps {
-  onFileSelected: (file: File) => void;
+  onFilesSelected: (files: File[]) => void;
   t: TranslationKeys;
 }
 
-export const Dropzone: React.FC<DropzoneProps> = ({ onFileSelected, t }) => {
+export const Dropzone: React.FC<DropzoneProps> = ({ onFilesSelected, t }) => {
   const [isDragOver, setIsDragOver] = useState(false);
 
-  const handleFileChange = (files: FileList | null) => {
-    if (files && files.length > 0) {
-      const file = files[0];
-      if (file.type.startsWith('image/')) {
-        onFileSelected(file);
+  const handleFileChange = (fileList: FileList | null) => {
+    if (fileList && fileList.length > 0) {
+      const validFiles: File[] = [];
+      for (let i = 0; i < fileList.length; i++) {
+        if (fileList[i].type.startsWith('image/')) {
+          validFiles.push(fileList[i]);
+        }
+      }
+      if (validFiles.length > 0) {
+        onFilesSelected(validFiles);
       }
     }
   };
@@ -28,17 +33,20 @@ export const Dropzone: React.FC<DropzoneProps> = ({ onFileSelected, t }) => {
   const handlePaste = useCallback((e: ClipboardEvent) => {
     const items = e.clipboardData?.items;
     if (items) {
+      const pastedFiles: File[] = [];
       for (let i = 0; i < items.length; i++) {
         if (items[i].type.indexOf('image') !== -1) {
           const file = items[i].getAsFile();
           if (file) {
-            onFileSelected(file);
-            break;
+            pastedFiles.push(file);
           }
         }
       }
+      if (pastedFiles.length > 0) {
+        onFilesSelected(pastedFiles);
+      }
     }
-  }, [onFileSelected]);
+  }, [onFilesSelected]);
 
   useEffect(() => {
     window.addEventListener('paste', handlePaste);
@@ -64,6 +72,7 @@ export const Dropzone: React.FC<DropzoneProps> = ({ onFileSelected, t }) => {
       >
         <input
           type="file"
+          multiple
           accept="image/jpeg,image/png,image/webp,image/gif,image/avif"
           onChange={(e) => handleFileChange(e.target.files)}
           className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20"
@@ -97,6 +106,10 @@ export const Dropzone: React.FC<DropzoneProps> = ({ onFileSelected, t }) => {
             <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800/60 border border-slate-700/50 text-[11px] font-mono text-slate-400">
               <Command className="w-3.5 h-3.5 text-cyan-400" />
               <span>{t.pasteClipboardHint}</span>
+            </div>
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-cyan-950/60 border border-cyan-800/50 text-[11px] font-mono text-cyan-300">
+              <Layers className="w-3.5 h-3.5" />
+              <span>دعم السحب الجماعي (Batch)</span>
             </div>
           </div>
 

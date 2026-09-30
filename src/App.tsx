@@ -2,14 +2,15 @@ import { useState, useEffect, useRef } from 'react';
 import { Header } from './components/Header';
 import { Dropzone } from './components/Dropzone';
 import { ControlsPanel, ResizeOptions } from './components/ControlsPanel';
-import { ResultPreview } from './components/ResultPreview';
+import { ResultPreview, ProcessedItem } from './components/ResultPreview';
 import { SeoSection } from './components/SeoSection';
 import { Footer } from './components/Footer';
+import { AdBanner } from './components/AdBanner';
+import { InfoModal, ModalType } from './components/InfoModal';
 import { DEFAULT_LANGUAGE, LANGUAGES, Language } from './i18n/languages';
 import { getTranslation } from './i18n/translations';
 import { WorkerInputMessage, WorkerOutputMessage } from './workers/image.worker';
-import { AdBanner } from './components/AdBanner';
-import { AlertCircle, X } from 'lucide-react';
+import { AlertCircle, X, Loader2 } from 'lucide-react';
 
 export function App() {
   const [currentLang, setCurrentLang] = useState<Language>(() => {
@@ -25,10 +26,11 @@ export function App() {
     return DEFAULT_LANGUAGE;
   });
 
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [originalWidth, setOriginalWidth] = useState<number>(0);
   const [originalHeight, setOriginalHeight] = useState<number>(0);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [activeModal, setActiveModal] = useState<ModalType>(null);
 
   const [resizeOptions, setResizeOptions] = useState<ResizeOptions>({
     mode: 'percentage',
@@ -42,14 +44,11 @@ export function App() {
   });
 
   const [isProcessing, setIsProcessing] = useState(false);
-  const [processedResult, setProcessedResult] = useState<{
-    blob: Blob;
-    width: number;
-    height: number;
-    dataUrl: string;
-  } | null>(null);
+  const [batchProgress, setBatchProgress] = useState<{ current: number; total: number } | null>(null);
+  const [processedItems, setProcessedItems] = useState<ProcessedItem[] | null>(null);
 
   const workerRef = useRef<Worker | null>(null);
+  const pendingRequests = useRef<Map<string, (output: WorkerOutputMessage) => void>>(new Map());
 
   const t = getTranslation(currentLang.code);
 
@@ -61,19 +60,11 @@ export function App() {
     );
 
     workerRef.current.onmessage = (e: MessageEvent<WorkerOutputMessage>) => {
-      const { success, blob, width, height, error } = e.data;
-      setIsProcessing(false);
-
-      if (success && blob) {
-        const dataUrl = URL.createObjectURL(blob);
-        setProcessedResult({
-          blob,
-          width,
-          height,
-          dataUrl,
-        });
-      } else {
-        setErrorMessage(error || 'Failed to process image. Please try another file.');
+      const { id } = e.data;
+      const callback = pendingRequests.current.get(id);
+      if (callback) {
+        callback(e.data);
+        pendingRequests.current.delete(id);
       }
     };
 
@@ -96,21 +87,23 @@ export function App() {
     window.history.replaceState({}, '', url.toString());
   }, [currentLang]);
 
-  // Handle image load to extract dimensions
-  const handleFileSelected = (file: File) => {
+  // Handle files selection (Single or Multiple)
+  const handleFilesSelected = (files: File[]) => {
+    if (files.length === 0) return;
     setErrorMessage(null);
-    setSelectedFile(file);
-    setProcessedResult(null);
+    setSelectedFiles(files);
+    setProcessedItems(null);
 
+    // Read first file dimensions for initial control defaults
+    const firstFile = files[0];
     const img = new Image();
-    const objectUrl = URL.createObjectURL(file);
+    const objectUrl = URL.createObjectURL(firstFile);
     img.onload = () => {
       const w = img.width;
       const h = img.height;
       setOriginalWidth(w);
       setOriginalHeight(h);
 
-      // Default resize option to 50%
       const defaultScaleW = Math.round(w * 0.5);
       const defaultScaleH = Math.round(h * 0.5);
 
@@ -132,35 +125,106 @@ export function App() {
     img.src = objectUrl;
   };
 
-  // Process Image via Web Worker
-  const handleProcessImage = () => {
-    if (!selectedFile || !workerRef.current || !resizeOptions.width || !resizeOptions.height) {
-      return;
-    }
+  // Helper to process one file through the Web Worker via Promise
+  const processOneFile = (file: File): Promise<ProcessedItem> => {
+    return new Promise((resolve, reject) => {
+      if (!workerRef.current) {
+        reject(new Error('Web Worker not initialized'));
+        return;
+      }
+
+      // First get native image dimensions for aspect ratio handling
+      const img = new Image();
+      const objUrl = URL.createObjectURL(file);
+      img.onload = () => {
+        const fileW = img.width;
+        const fileH = img.height;
+        URL.revokeObjectURL(objUrl);
+
+        let targetW = resizeOptions.width;
+        let targetH = resizeOptions.height;
+
+        if (resizeOptions.mode === 'percentage') {
+          targetW = Math.round((fileW * resizeOptions.percentage) / 100);
+          targetH = Math.round((fileH * resizeOptions.percentage) / 100);
+        }
+
+        const msgId = Math.random().toString(36).substring(2, 9);
+        const inputMsg: WorkerInputMessage = {
+          id: msgId,
+          file,
+          targetWidth: targetW,
+          targetHeight: targetH,
+          format: resizeOptions.format,
+          quality: resizeOptions.quality,
+          fitMode: resizeOptions.fitMode,
+          backgroundColor: resizeOptions.backgroundColor,
+          maxSizeKB: resizeOptions.maxSizeKB,
+        };
+
+        pendingRequests.current.set(msgId, (out: WorkerOutputMessage) => {
+          if (out.success && out.blob) {
+            const dataUrl = URL.createObjectURL(out.blob);
+            resolve({
+              originalFile: file,
+              originalWidth: fileW,
+              originalHeight: fileH,
+              blob: out.blob,
+              width: out.width,
+              height: out.height,
+              dataUrl,
+            });
+          } else {
+            reject(new Error(out.error || `Failed to process ${file.name}`));
+          }
+        });
+
+        workerRef.current?.postMessage(inputMsg);
+      };
+
+      img.onerror = () => {
+        URL.revokeObjectURL(objUrl);
+        reject(new Error(`Failed to read file ${file.name}`));
+      };
+
+      img.src = objUrl;
+    });
+  };
+
+  // Process all selected images
+  const handleProcessImages = async () => {
+    if (selectedFiles.length === 0 || !workerRef.current) return;
 
     setErrorMessage(null);
     setIsProcessing(true);
+    setBatchProgress({ current: 0, total: selectedFiles.length });
 
-    const message: WorkerInputMessage = {
-      id: Math.random().toString(36).substring(2, 9),
-      file: selectedFile,
-      targetWidth: resizeOptions.width,
-      targetHeight: resizeOptions.height,
-      format: resizeOptions.format,
-      quality: resizeOptions.quality,
-      fitMode: resizeOptions.fitMode,
-    };
+    const results: ProcessedItem[] = [];
 
-    workerRef.current.postMessage(message);
+    try {
+      for (let i = 0; i < selectedFiles.length; i++) {
+        setBatchProgress({ current: i + 1, total: selectedFiles.length });
+        const item = await processOneFile(selectedFiles[i]);
+        results.push(item);
+      }
+
+      setProcessedItems(results);
+    } catch (err: any) {
+      setErrorMessage(err.message || 'Error occurred while processing images');
+    } finally {
+      setIsProcessing(false);
+      setBatchProgress(null);
+    }
   };
 
   const handleReset = () => {
-    if (processedResult?.dataUrl) {
-      URL.revokeObjectURL(processedResult.dataUrl);
+    if (processedItems) {
+      processedItems.forEach((item) => URL.revokeObjectURL(item.dataUrl));
     }
-    setSelectedFile(null);
-    setProcessedResult(null);
+    setSelectedFiles([]);
+    setProcessedItems(null);
     setErrorMessage(null);
+    setBatchProgress(null);
   };
 
   return (
@@ -205,27 +269,29 @@ export function App() {
           </div>
         )}
 
-        {/* Step 1: Dropzone (if no file chosen) */}
-        {!selectedFile && (
-          <Dropzone onFileSelected={handleFileSelected} t={t} />
+        {/* Step 1: Dropzone (if no files chosen) */}
+        {selectedFiles.length === 0 && (
+          <Dropzone onFilesSelected={handleFilesSelected} t={t} />
         )}
 
-        {/* Step 2: Controls & Processing (if file chosen & not processed yet) */}
-        {selectedFile && !processedResult && (
+        {/* Step 2: Controls & Processing (if files chosen & not processed yet) */}
+        {selectedFiles.length > 0 && !processedItems && (
           <div className="space-y-6">
             
             {/* File Selected Badge */}
             <div className="glass-panel p-4 rounded-2xl flex items-center justify-between border border-slate-800">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-cyan-950 border border-cyan-800/60 flex items-center justify-center text-cyan-400 font-bold text-xs">
-                  IMG
+                  {selectedFiles.length > 1 ? `${selectedFiles.length}X` : 'IMG'}
                 </div>
                 <div>
                   <div className="text-sm font-bold text-slate-200 truncate max-w-xs sm:max-w-md">
-                    {selectedFile.name}
+                    {selectedFiles.length === 1
+                      ? selectedFiles[0].name
+                      : `تم اختيار ${selectedFiles.length} صور للمعالجة الجماعية`}
                   </div>
                   <div className="text-xs font-mono text-slate-400">
-                    {(selectedFile.size / 1024 / 1024).toFixed(2)} MB • {originalWidth} × {originalHeight} px
+                    {(selectedFiles.reduce((acc, f) => acc + f.size, 0) / 1024 / 1024).toFixed(2)} MB إجمالي • {originalWidth} × {originalHeight} px
                   </div>
                 </div>
               </div>
@@ -234,33 +300,51 @@ export function App() {
                 onClick={handleReset}
                 className="text-xs text-rose-400 hover:text-rose-300 px-3 py-1.5 rounded-lg bg-rose-950/40 border border-rose-800/40 font-semibold"
               >
-                Change Image
+                تغيير الصور
               </button>
             </div>
+
+            {/* Batch Progress Bar if running */}
+            {isProcessing && batchProgress && (
+              <div className="glass-panel p-4 rounded-2xl border border-cyan-500/40 bg-cyan-950/20 space-y-2">
+                <div className="flex justify-between text-xs font-bold text-cyan-300">
+                  <span className="flex items-center gap-2">
+                    <Loader2 className="w-4 h-4 animate-spin text-cyan-400" />
+                    <span>جاري معالجة الصور محلياً داخل المتصفح...</span>
+                  </span>
+                  <span className="font-mono">
+                    {batchProgress.current} / {batchProgress.total}
+                  </span>
+                </div>
+                <div className="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
+                  <div
+                    className="bg-cyan-400 h-full transition-all duration-200"
+                    style={{
+                      width: `${(batchProgress.current / batchProgress.total) * 100}%`,
+                    }}
+                  />
+                </div>
+              </div>
+            )}
 
             <ControlsPanel
               originalWidth={originalWidth}
               originalHeight={originalHeight}
               options={resizeOptions}
               onChangeOptions={setResizeOptions}
-              onProcess={handleProcessImage}
+              onProcess={handleProcessImages}
               isProcessing={isProcessing}
               t={t}
+              fileCount={selectedFiles.length}
             />
 
           </div>
         )}
 
         {/* Step 3: Result Preview & Download */}
-        {selectedFile && processedResult && (
+        {selectedFiles.length > 0 && processedItems && (
           <ResultPreview
-            originalFile={selectedFile}
-            originalWidth={originalWidth}
-            originalHeight={originalHeight}
-            processedBlob={processedResult.blob}
-            processedWidth={processedResult.width}
-            processedHeight={processedResult.height}
-            processedDataUrl={processedResult.dataUrl}
+            items={processedItems}
             onReset={handleReset}
             t={t}
           />
@@ -271,7 +355,7 @@ export function App() {
           <AdBanner slotType="in-feed" />
         </div>
 
-        {/* Programmatic SEO & Format Guide Section */}
+        {/* Programmatic SEO & Format Guide Section with FAQ */}
         <SeoSection t={t} />
 
       </main>
@@ -284,7 +368,18 @@ export function App() {
       </div>
 
       {/* Footer */}
-      <Footer currentLang={currentLang} onSelectLang={setCurrentLang} t={t} />
+      <Footer
+        currentLang={currentLang}
+        onSelectLang={setCurrentLang}
+        onOpenModal={setActiveModal}
+        t={t}
+      />
+
+      {/* Legal & Trust Info Modals */}
+      <InfoModal
+        type={activeModal}
+        onClose={() => setActiveModal(null)}
+      />
 
     </div>
   );

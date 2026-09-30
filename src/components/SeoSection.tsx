@@ -1,5 +1,5 @@
-import React from 'react';
-import { Cpu, ShieldCheck, Zap, Globe, Layers } from 'lucide-react';
+import React, { useState } from 'react';
+import { Cpu, ShieldCheck, Zap, Globe, Layers, HelpCircle, ChevronDown } from 'lucide-react';
 import { TranslationKeys } from '../i18n/translations';
 
 interface SeoSectionProps {
@@ -7,8 +7,33 @@ interface SeoSectionProps {
 }
 
 export const SeoSection: React.FC<SeoSectionProps> = ({ t }) => {
+  const [openFaq, setOpenFaq] = useState<number | null>(null);
+
+  const faqs = [
+    {
+      q: 'هل عملية تغيير مقاس وضغط الصور آمنة بنسبة 100%؟',
+      a: 'نعم بالتأكيد! يعتمد موقع مُحجِّم على تقنية المعالجة المحلية من طرف العميل (Client-Side In-Browser Engine). صورك وملفاتك لا ترفع إلى أي خادم خارجي نهائياً، بل تتم معالجتها بالكامل على معالج الرسوميات والرام الخاص بجهازك.',
+    },
+    {
+      q: 'كيف أستخدم الموقع لتسريع متجري الإلكتروني على سلة، زد، أو شوبيفاي؟',
+      a: 'ننصح باختيار قالب "متاجر سلة وزد" (1000×1000 بكسل) مع اختيار صيغة WEBP وجودة ضغط بين 80% إلى 85%. هذا يقلل حجم صور منتجاتك بنسبة تصل إلى 90%، مما يجعل متجرك يفتح في أقل من ثانية واحدة ويرفع مبيعاتك.',
+    },
+    {
+      q: 'كيف يمكنني ضبط حجم صورة الجواز أو الهوية لتكون أقل من 100 كيلوبايت؟',
+      a: 'اختر تبويب "الهوية والجوازات (Gov)" من لوحة التحكم، ثم حدد مقاس جواز السفر أو الهوية المطلوبة، وسيقوم المحرك تلقائياً بضغط الصورة وضمان بقائها أقل من 100KB أو 200KB حسب شروط السفارات والمواقع الحكومية.',
+    },
+    {
+      q: 'هل يمكنني تغيير مقاس وضغط عدة صور دفعة واحدة؟',
+      a: 'نعم! يمكنك سحب وإفلات عشرات الصور معاً في منطقة الرفع، ثم الضغط على زر "معالجة وتجهيز جميع الصور"، وسيتم ضغطها جميعاً وتوفير زر لتحميلها كملف مضغوط ZIP بنقرة واحدة.',
+    },
+    {
+      q: 'هل الخدمة مجانية وهل توجد قيود على عدد الصور؟',
+      a: 'مُحجِّم مجاني 100% وبدون أي حدود لعدد الصور أو إجبار على التسجيل، وهو متاح للاستخدام الشخصي والتجاري بدعم من Novixa Digital Engineering.',
+    },
+  ];
+
   return (
-    <section className="mt-16 glass-panel rounded-3xl p-8 sm:p-12 border border-slate-800/80 space-y-8">
+    <section className="mt-16 glass-panel rounded-3xl p-8 sm:p-12 border border-slate-800/80 space-y-10">
       
       <div className="space-y-3 max-w-3xl">
         <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-cyan-950/80 border border-cyan-800/60 text-cyan-400 text-xs font-bold uppercase tracking-wider">
@@ -61,40 +86,77 @@ export const SeoSection: React.FC<SeoSectionProps> = ({ t }) => {
       <div className="pt-6 border-t border-slate-800/80">
         <h3 className="text-sm font-bold text-slate-200 mb-4 flex items-center gap-2">
           <Zap className="w-4 h-4 text-cyan-400" />
-          <span>Format Comparison Matrix</span>
+          <span>مقارنة صيغ الصور الرقمية (WebP مقابل JPEG مقابل PNG)</span>
         </h3>
 
         <div className="overflow-x-auto">
           <table className="w-full text-xs text-start text-slate-400">
             <thead className="bg-slate-900/80 text-slate-200 font-bold uppercase font-mono border-b border-slate-800">
               <tr>
-                <th className="px-4 py-3">Format</th>
-                <th className="px-4 py-3">Compression</th>
-                <th className="px-4 py-3">Transparency</th>
-                <th className="px-4 py-3">Best Used For</th>
+                <th className="px-4 py-3">الصيغة (Format)</th>
+                <th className="px-4 py-3">نسبة تقليص الحجم</th>
+                <th className="px-4 py-3">دعم الشفافية</th>
+                <th className="px-4 py-3">أفضل استخدام</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/60 font-mono">
               <tr className="hover:bg-slate-900/40">
                 <td className="px-4 py-3 font-bold text-cyan-400">WEBP</td>
-                <td className="px-4 py-3 text-emerald-400">Ultra High (-80%)</td>
-                <td className="px-4 py-3 text-emerald-400">Yes</td>
-                <td className="px-4 py-3 text-slate-300">Websites, E-Commerce, Modern Apps</td>
+                <td className="px-4 py-3 text-emerald-400">فائق الارتفاع (-80% إلى -92%)</td>
+                <td className="px-4 py-3 text-emerald-400">نعم (Alpha)</td>
+                <td className="px-4 py-3 text-slate-300">المواقع والمتاجر وسرعة الويب</td>
               </tr>
               <tr className="hover:bg-slate-900/40">
                 <td className="px-4 py-3 font-bold text-amber-400">JPEG / JPG</td>
-                <td className="px-4 py-3 text-emerald-400">High (-60%)</td>
-                <td className="px-4 py-3 text-rose-400">No</td>
-                <td className="px-4 py-3 text-slate-300">Photographs, Social Media Posts</td>
+                <td className="px-4 py-3 text-emerald-400">عالي (-50% إلى -70%)</td>
+                <td className="px-4 py-3 text-rose-400">لا</td>
+                <td className="px-4 py-3 text-slate-300">الصور الفوتوغرافية ومنشورات التواصل</td>
               </tr>
               <tr className="hover:bg-slate-900/40">
                 <td className="px-4 py-3 font-bold text-indigo-400">PNG</td>
-                <td className="px-4 py-3 text-amber-400">Lossless (-20%)</td>
-                <td className="px-4 py-3 text-emerald-400">Yes</td>
-                <td className="px-4 py-3 text-slate-300">Logos, Graphics, Transparent Icons</td>
+                <td className="px-4 py-3 text-amber-400">ضغط غير فقود (-15% إلى -30%)</td>
+                <td className="px-4 py-3 text-emerald-400">نعم (Full Alpha)</td>
+                <td className="px-4 py-3 text-slate-300">الشعارات، الأيقونات، والرسومات الدقيقة</td>
               </tr>
             </tbody>
           </table>
+        </div>
+      </div>
+
+      {/* Interactive FAQ Accordion */}
+      <div className="pt-6 border-t border-slate-800/80 space-y-4">
+        <div className="flex items-center gap-2">
+          <HelpCircle className="w-5 h-5 text-cyan-400" />
+          <h3 className="text-lg font-bold text-slate-100">الأسئلة الشائعة والأكثر بحثاً (FAQ)</h3>
+        </div>
+
+        <div className="space-y-3">
+          {faqs.map((faq, index) => {
+            const isOpen = openFaq === index;
+            return (
+              <div
+                key={index}
+                className="bg-slate-900/60 border border-slate-800 rounded-2xl overflow-hidden transition-all"
+              >
+                <button
+                  onClick={() => setOpenFaq(isOpen ? null : index)}
+                  className="w-full p-4 text-start font-bold text-xs sm:text-sm text-slate-200 flex items-center justify-between gap-3 hover:text-cyan-300 transition-colors"
+                >
+                  <span>{faq.q}</span>
+                  <ChevronDown
+                    className={`w-4 h-4 text-slate-400 shrink-0 transition-transform duration-200 ${
+                      isOpen ? 'rotate-180 text-cyan-400' : ''
+                    }`}
+                  />
+                </button>
+                {isOpen && (
+                  <div className="px-4 pb-4 text-xs text-slate-400 leading-relaxed border-t border-slate-800/60 pt-3">
+                    {faq.a}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       </div>
 

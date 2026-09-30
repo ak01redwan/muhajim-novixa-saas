@@ -1,31 +1,33 @@
-import React from 'react';
-import { Download, RefreshCw, Sparkles, ExternalLink, HardDrive } from 'lucide-react';
+import React, { useState } from 'react';
+import { Download, RefreshCw, Sparkles, ExternalLink, HardDrive, Archive, Eye } from 'lucide-react';
 import confetti from 'canvas-confetti';
+import JSZip from 'jszip';
 import { TranslationKeys } from '../i18n/translations';
+import { ComparisonSlider } from './ComparisonSlider';
 
-interface ResultPreviewProps {
+export interface ProcessedItem {
   originalFile: File;
   originalWidth: number;
   originalHeight: number;
-  processedBlob: Blob;
-  processedWidth: number;
-  processedHeight: number;
-  processedDataUrl: string;
+  blob: Blob;
+  width: number;
+  height: number;
+  dataUrl: string;
+}
+
+interface ResultPreviewProps {
+  items: ProcessedItem[];
   onReset: () => void;
   t: TranslationKeys;
 }
 
-export const ResultPreview: React.FC<ResultPreviewProps> = ({
-  originalFile,
-  originalWidth,
-  originalHeight,
-  processedBlob,
-  processedWidth,
-  processedHeight,
-  processedDataUrl,
-  onReset,
-  t,
-}) => {
+export const ResultPreview: React.FC<ResultPreviewProps> = ({ items, onReset, t }) => {
+  const [viewMode, setViewMode] = useState<'slider' | 'preview'>('slider');
+  const [selectedIndex, setSelectedIndex] = useState<number>(0);
+  const [isZipping, setIsZipping] = useState(false);
+
+  const activeItem = items[selectedIndex] || items[0];
+
   const formatBytes = (bytes: number): string => {
     if (bytes === 0) return '0 Bytes';
     const k = 1024;
@@ -34,29 +36,74 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
-  const originalSizeFormatted = formatBytes(originalFile.size);
-  const newSizeFormatted = formatBytes(processedBlob.size);
+  const totalOriginalSize = items.reduce((acc, curr) => acc + curr.originalFile.size, 0);
+  const totalNewSize = items.reduce((acc, curr) => acc + curr.blob.size, 0);
 
   const savingsPercent = Math.max(
     0,
-    Math.round(((originalFile.size - processedBlob.size) / originalFile.size) * 100)
+    Math.round(((totalOriginalSize - totalNewSize) / totalOriginalSize) * 100)
   );
 
-  const handleDownload = () => {
-    // Trigger confetti celebration
+  const originalObjectUrl = React.useMemo(() => {
+    if (!activeItem) return '';
+    return URL.createObjectURL(activeItem.originalFile);
+  }, [activeItem]);
+
+  React.useEffect(() => {
+    return () => {
+      if (originalObjectUrl) {
+        URL.revokeObjectURL(originalObjectUrl);
+      }
+    };
+  }, [originalObjectUrl]);
+
+  const handleDownloadSingle = (item: ProcessedItem) => {
     confetti({
-      particleCount: 80,
-      spread: 70,
+      particleCount: 70,
+      spread: 60,
       origin: { y: 0.6 },
     });
 
-    const extension = processedBlob.type.split('/')[1] || 'png';
+    const extension = item.blob.type.split('/')[1] || 'webp';
     const link = document.createElement('a');
-    link.href = processedDataUrl;
-    link.download = `resized_${originalFile.name.split('.')[0]}.${extension}`;
+    link.href = item.dataUrl;
+    link.download = `resized_${item.originalFile.name.split('.')[0]}.${extension}`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+  };
+
+  const handleDownloadZip = async () => {
+    setIsZipping(true);
+    try {
+      const zip = new JSZip();
+      items.forEach((item, idx) => {
+        const ext = item.blob.type.split('/')[1] || 'webp';
+        const cleanName = item.originalFile.name.split('.')[0];
+        zip.file(`muhajim_${idx + 1}_${cleanName}.${ext}`, item.blob);
+      });
+
+      const zipBlob = await zip.generateAsync({ type: 'blob' });
+      const downloadUrl = URL.createObjectURL(zipBlob);
+
+      confetti({
+        particleCount: 120,
+        spread: 90,
+        origin: { y: 0.5 },
+      });
+
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = `muhajim_batch_${items.length}_images.zip`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(downloadUrl);
+    } catch (err) {
+      console.error('Failed to create ZIP:', err);
+    } finally {
+      setIsZipping(false);
+    }
   };
 
   return (
@@ -67,40 +114,53 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({
         
         <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-cyan-900/40 border border-cyan-700/50 text-cyan-300 text-xs font-bold">
           <Sparkles className="w-4 h-4 text-cyan-400" />
-          <span>{t.savingsLabel}: {savingsPercent}%</span>
+          <span>{t.savingsLabel}: {savingsPercent}% {items.length > 1 && `(إجمالي ${items.length} صور)`}</span>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-center max-w-xl mx-auto">
-          
           {/* Before */}
           <div className="bg-slate-900/80 p-4 rounded-2xl border border-slate-800">
             <div className="text-xs text-slate-400 font-semibold mb-1">{t.originalSize}</div>
-            <div className="text-xl font-bold font-mono text-slate-200">{originalSizeFormatted}</div>
-            <div className="text-[11px] font-mono text-slate-500">{originalWidth} × {originalHeight} px</div>
+            <div className="text-xl font-bold font-mono text-slate-200">{formatBytes(totalOriginalSize)}</div>
+            <div className="text-[11px] font-mono text-slate-500">
+              {items.length === 1 ? `${activeItem.originalWidth} × ${activeItem.originalHeight} px` : `${items.length} ملفات أصلية`}
+            </div>
           </div>
 
           {/* After */}
           <div className="bg-cyan-950/60 p-4 rounded-2xl border border-cyan-800/60">
             <div className="text-xs text-cyan-300 font-semibold mb-1">{t.newSize}</div>
-            <div className="text-xl font-bold font-mono text-cyan-400">{newSizeFormatted}</div>
-            <div className="text-[11px] font-mono text-cyan-300">{processedWidth} × {processedHeight} px</div>
+            <div className="text-xl font-bold font-mono text-cyan-400">{formatBytes(totalNewSize)}</div>
+            <div className="text-[11px] font-mono text-cyan-300">
+              {items.length === 1 ? `${activeItem.width} × ${activeItem.height} px` : `جاهزة للتحميل بنقرة واحدة`}
+            </div>
           </div>
-
         </div>
 
-        {/* Download & Reset Action Buttons */}
-        <div className="pt-2 flex flex-col sm:flex-row gap-3 justify-center max-w-md mx-auto">
-          <button
-            onClick={handleDownload}
-            className="flex-1 gradient-button py-4 px-6 rounded-2xl font-bold text-slate-950 text-base flex items-center justify-center gap-2 shadow-xl shadow-cyan-500/20"
-          >
-            <Download className="w-5 h-5" />
-            <span>{t.downloadBtn}</span>
-          </button>
+        {/* Action Buttons: Single / Batch Zip / Reset */}
+        <div className="pt-2 flex flex-col sm:flex-row gap-3 justify-center max-w-lg mx-auto">
+          {items.length > 1 ? (
+            <button
+              onClick={handleDownloadZip}
+              disabled={isZipping}
+              className="flex-1 gradient-button py-4 px-6 rounded-2xl font-bold text-slate-950 text-base flex items-center justify-center gap-2 shadow-xl shadow-cyan-500/20 disabled:opacity-50"
+            >
+              <Archive className="w-5 h-5" />
+              <span>{isZipping ? 'جاري ضغط الملفات...' : `تحميل الكل كملف ZIP (${items.length})`}</span>
+            </button>
+          ) : (
+            <button
+              onClick={() => handleDownloadSingle(activeItem)}
+              className="flex-1 gradient-button py-4 px-6 rounded-2xl font-bold text-slate-950 text-base flex items-center justify-center gap-2 shadow-xl shadow-cyan-500/20"
+            >
+              <Download className="w-5 h-5" />
+              <span>{t.downloadBtn}</span>
+            </button>
+          )}
 
           <button
             onClick={onReset}
-            className="py-4 px-6 rounded-2xl font-semibold bg-slate-900 hover:bg-slate-800 border border-slate-700/80 text-slate-300 text-sm flex items-center justify-center gap-2"
+            className="py-4 px-6 rounded-2xl font-semibold bg-slate-900 hover:bg-slate-800 border border-slate-700/80 text-slate-300 text-sm flex items-center justify-center gap-2 transition-all"
           >
             <RefreshCw className="w-4 h-4 text-slate-400" />
             <span>{t.resetBtn}</span>
@@ -109,16 +169,82 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({
 
       </div>
 
-      {/* Image Preview Container */}
-      <div className="glass-panel rounded-3xl p-4 sm:p-6 border border-slate-800 flex flex-col items-center">
-        <div className="w-full max-h-[450px] overflow-hidden rounded-2xl bg-slate-950 border border-slate-800 flex items-center justify-center p-2">
-          <img
-            src={processedDataUrl}
-            alt="Resized Preview"
-            className="max-h-[430px] w-auto object-contain rounded-xl shadow-2xl"
-          />
+      {/* Multi-item Thumbnail Selector (If Batch Mode) */}
+      {items.length > 1 && (
+        <div className="space-y-2">
+          <div className="text-xs font-bold text-slate-400">اختر صورة لمعاينتها وتدقيق جودتها:</div>
+          <div className="flex gap-2.5 overflow-x-auto pb-2 custom-scrollbar">
+            {items.map((item, idx) => (
+              <button
+                key={idx}
+                onClick={() => setSelectedIndex(idx)}
+                className={`relative shrink-0 w-20 h-20 rounded-xl overflow-hidden border-2 transition-all ${
+                  selectedIndex === idx
+                    ? 'border-cyan-400 scale-105 shadow-lg shadow-cyan-500/20'
+                    : 'border-slate-800 opacity-60 hover:opacity-100'
+                }`}
+              >
+                <img src={item.dataUrl} alt={`Thumb ${idx}`} className="w-full h-full object-cover" />
+                <span className="absolute bottom-0 inset-x-0 bg-slate-950/80 text-[10px] font-mono text-cyan-400 text-center py-0.5">
+                  #{idx + 1}
+                </span>
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
+
+      {/* Preview & Comparison Mode Switcher */}
+      {activeItem && (
+        <div className="glass-panel rounded-3xl p-4 sm:p-6 border border-slate-800 space-y-4">
+          <div className="flex justify-between items-center">
+            <span className="text-xs font-bold text-slate-300 truncate max-w-xs">
+              معاينة: {activeItem.originalFile.name}
+            </span>
+
+            <div className="flex p-1 bg-slate-950 rounded-xl border border-slate-800 text-xs">
+              <button
+                onClick={() => setViewMode('slider')}
+                className={`px-3 py-1.5 rounded-lg font-bold transition-all flex items-center gap-1.5 ${
+                  viewMode === 'slider'
+                    ? 'bg-slate-800 text-cyan-300'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
+                <span>مقارنة تفاعلية (Slider)</span>
+              </button>
+              <button
+                onClick={() => setViewMode('preview')}
+                className={`px-3 py-1.5 rounded-lg font-bold transition-all flex items-center gap-1.5 ${
+                  viewMode === 'preview'
+                    ? 'bg-slate-800 text-cyan-300'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                <Eye className="w-3.5 h-3.5" />
+                <span>المعاينة المباشرة</span>
+              </button>
+            </div>
+          </div>
+
+          {/* View Container */}
+          {viewMode === 'slider' ? (
+            <ComparisonSlider
+              originalUrl={originalObjectUrl}
+              processedUrl={activeItem.dataUrl}
+            />
+          ) : (
+            <div className="w-full max-h-[450px] overflow-hidden rounded-2xl bg-slate-950 border border-slate-800 flex items-center justify-center p-2">
+              <img
+                src={activeItem.dataUrl}
+                alt="Resized Preview"
+                className="max-h-[430px] w-auto object-contain rounded-xl shadow-2xl"
+              />
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Monetization & Novixa Ecosystem Banner */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

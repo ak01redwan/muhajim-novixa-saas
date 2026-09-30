@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Sliders, Maximize2, Lock, Unlock, Layers, FileType, Zap, Crop } from 'lucide-react';
+import { Sliders, Maximize2, Lock, Unlock, Layers, FileType, Zap, Crop, Shield, Palette } from 'lucide-react';
 import { TranslationKeys } from '../i18n/translations';
 
 export interface ResizeOptions {
-  mode: 'percentage' | 'custom' | 'preset';
+  mode: 'percentage' | 'custom' | 'preset' | 'passport';
   percentage: number;
   width: number;
   height: number;
@@ -11,6 +11,8 @@ export interface ResizeOptions {
   format: 'image/webp' | 'image/jpeg' | 'image/png';
   quality: number; // 0.1 to 1.0
   fitMode?: 'stretch' | 'contain' | 'cover';
+  backgroundColor?: string;
+  maxSizeKB?: number;
 }
 
 interface ControlsPanelProps {
@@ -21,6 +23,7 @@ interface ControlsPanelProps {
   onProcess: () => void;
   isProcessing: boolean;
   t: TranslationKeys;
+  fileCount?: number;
 }
 
 export const ControlsPanel: React.FC<ControlsPanelProps> = ({
@@ -31,6 +34,7 @@ export const ControlsPanel: React.FC<ControlsPanelProps> = ({
   onProcess,
   isProcessing,
   t,
+  fileCount = 1,
 }) => {
   const [aspectRatio, setAspectRatio] = useState<number>(1);
 
@@ -69,13 +73,13 @@ export const ControlsPanel: React.FC<ControlsPanelProps> = ({
     });
   };
 
-  const applyPreset = (w: number, h: number) => {
+  const applyPreset = (w: number, h: number, fit: 'cover' | 'contain' = 'cover', maxKB?: number) => {
     onChangeOptions({
       ...options,
-      mode: 'preset',
       width: w,
       height: h,
-      fitMode: options.fitMode || 'cover',
+      fitMode: fit,
+      maxSizeKB: maxKB,
     });
   };
 
@@ -83,10 +87,10 @@ export const ControlsPanel: React.FC<ControlsPanelProps> = ({
     <div className="glass-panel rounded-3xl p-6 sm:p-8 border border-slate-800 space-y-6">
       
       {/* Tab Controls: Mode Switcher */}
-      <div className="flex p-1 bg-slate-900/90 rounded-2xl border border-slate-800">
+      <div className="grid grid-cols-2 sm:grid-cols-4 p-1.5 bg-slate-900/90 rounded-2xl border border-slate-800 gap-1">
         <button
           onClick={() => onChangeOptions({ ...options, mode: 'percentage' })}
-          className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+          className={`py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
             options.mode === 'percentage'
               ? 'bg-cyan-500 text-slate-950 shadow-md shadow-cyan-500/20'
               : 'text-slate-400 hover:text-slate-200'
@@ -98,7 +102,7 @@ export const ControlsPanel: React.FC<ControlsPanelProps> = ({
 
         <button
           onClick={() => onChangeOptions({ ...options, mode: 'custom' })}
-          className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+          className={`py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
             options.mode === 'custom'
               ? 'bg-cyan-500 text-slate-950 shadow-md shadow-cyan-500/20'
               : 'text-slate-400 hover:text-slate-200'
@@ -110,7 +114,7 @@ export const ControlsPanel: React.FC<ControlsPanelProps> = ({
 
         <button
           onClick={() => onChangeOptions({ ...options, mode: 'preset' })}
-          className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+          className={`py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
             options.mode === 'preset'
               ? 'bg-cyan-500 text-slate-950 shadow-md shadow-cyan-500/20'
               : 'text-slate-400 hover:text-slate-200'
@@ -118,6 +122,28 @@ export const ControlsPanel: React.FC<ControlsPanelProps> = ({
         >
           <Layers className="w-3.5 h-3.5" />
           <span>{t.resizeTabPresets}</span>
+        </button>
+
+        <button
+          onClick={() => {
+            onChangeOptions({
+              ...options,
+              mode: 'passport',
+              width: 600,
+              height: 600,
+              fitMode: 'cover',
+              maxSizeKB: 100,
+              format: 'image/jpeg',
+            });
+          }}
+          className={`py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+            options.mode === 'passport'
+              ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-slate-950 shadow-md shadow-emerald-500/20'
+              : 'text-slate-400 hover:text-slate-200'
+          }`}
+        >
+          <Shield className="w-3.5 h-3.5" />
+          <span>الهوية والجوازات (Gov)</span>
         </button>
       </div>
 
@@ -261,34 +287,113 @@ export const ControlsPanel: React.FC<ControlsPanelProps> = ({
             </button>
 
             <button
-              onClick={() => applyPreset(1000, 1000)}
+              onClick={() => applyPreset(1000, 1000, 'cover')}
               className={`p-3 rounded-xl border text-start space-y-1 transition-all ${
                 options.width === 1000 && options.height === 1000
                   ? 'bg-cyan-950/80 border-cyan-500/80 text-cyan-300'
                   : 'bg-slate-900/60 hover:bg-slate-800/80 border-slate-800 text-slate-200'
               }`}
             >
-              <div className="text-xs font-bold">{t.presetEcommerceSquare}</div>
+              <div className="text-xs font-bold">متاجر سلة وزد وشوبيفاي</div>
               <div className="text-[11px] font-mono text-cyan-400">1000 × 1000 px</div>
             </button>
 
             <button
-              onClick={() => applyPreset(600, 600)}
+              onClick={() => applyPreset(1200, 630)}
               className={`p-3 rounded-xl border text-start space-y-1 transition-all ${
-                options.width === 600 && options.height === 600
+                options.width === 1200 && options.height === 630
                   ? 'bg-cyan-950/80 border-cyan-500/80 text-cyan-300'
                   : 'bg-slate-900/60 hover:bg-slate-800/80 border-slate-800 text-slate-200'
               }`}
             >
-              <div className="text-xs font-bold">{t.presetGovDoc}</div>
-              <div className="text-[11px] font-mono text-cyan-400">600 × 600 px</div>
+              <div className="text-xs font-bold">غلاف فيسبوك / لينكدإن</div>
+              <div className="text-[11px] font-mono text-cyan-400">1200 × 630 px</div>
             </button>
           </div>
         </div>
       )}
 
-      {/* Fit & Crop Mode Picker (Shown for custom or preset if aspect ratio may change) */}
-      {(options.mode === 'preset' || (options.mode === 'custom' && !options.lockAspect)) && (
+      {/* Mode 4: Passport & Official Gov Documents Mode */}
+      {options.mode === 'passport' && (
+        <div className="space-y-4 bg-emerald-950/20 p-5 rounded-2xl border border-emerald-800/40">
+          <div className="text-xs font-bold text-emerald-300 flex items-center gap-1.5">
+            <Shield className="w-4 h-4 text-emerald-400" />
+            <span>مقاسات الهوية الرسمية وجوازات السفر والفيزا (DPI 300)</span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+            <button
+              onClick={() => applyPreset(600, 600, 'cover', 100)}
+              className={`p-3 rounded-xl border text-start space-y-1 transition-all ${
+                options.width === 600 && options.height === 600
+                  ? 'bg-emerald-950 text-emerald-300 border-emerald-500'
+                  : 'bg-slate-900/70 border-slate-800 text-slate-300'
+              }`}
+            >
+              <div className="text-xs font-bold">جواز سفر أمريكي / دولي</div>
+              <div className="text-[11px] font-mono text-emerald-400">2×2 إنش (600×600 px)</div>
+              <div className="text-[10px] text-slate-400">مضمونة أقل من 100KB</div>
+            </button>
+
+            <button
+              onClick={() => applyPreset(413, 531, 'cover', 100)}
+              className={`p-3 rounded-xl border text-start space-y-1 transition-all ${
+                options.width === 413 && options.height === 531
+                  ? 'bg-emerald-950 text-emerald-300 border-emerald-500'
+                  : 'bg-slate-900/70 border-slate-800 text-slate-300'
+              }`}
+            >
+              <div className="text-xs font-bold">فيزا الشنغن / أوروبا والخليج</div>
+              <div className="text-[11px] font-mono text-emerald-400">35×45 ملم (413×531 px)</div>
+              <div className="text-[10px] text-slate-400">معايير السفارات</div>
+            </button>
+
+            <button
+              onClick={() => applyPreset(472, 709, 'cover', 200)}
+              className={`p-3 rounded-xl border text-start space-y-1 transition-all ${
+                options.width === 472 && options.height === 709
+                  ? 'bg-emerald-950 text-emerald-300 border-emerald-500'
+                  : 'bg-slate-900/70 border-slate-800 text-slate-300'
+              }`}
+            >
+              <div className="text-xs font-bold">الهوية والوثائق العربية</div>
+              <div className="text-[11px] font-mono text-emerald-400">4×6 سم (472×709 px)</div>
+              <div className="text-[10px] text-slate-400">أقل من 200KB تلقائياً</div>
+            </button>
+          </div>
+
+          {/* Background color fill selector for official photos */}
+          <div className="pt-2 border-t border-emerald-900/40 flex items-center justify-between">
+            <span className="text-xs text-slate-300 font-semibold flex items-center gap-1.5">
+              <Palette className="w-3.5 h-3.5 text-emerald-400" />
+              <span>لون خلفية الهوية:</span>
+            </span>
+            <div className="flex gap-2">
+              {[
+                { name: 'أبيض', color: '#FFFFFF' },
+                { name: 'رمادي فاتح', color: '#F3F4F6' },
+                { name: 'أزرق فاتح', color: '#E0F2FE' },
+              ].map((bg) => (
+                <button
+                  key={bg.color}
+                  onClick={() => onChangeOptions({ ...options, backgroundColor: bg.color })}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-bold border transition-all flex items-center gap-1.5 ${
+                    options.backgroundColor === bg.color
+                      ? 'bg-emerald-950 text-emerald-300 border-emerald-500'
+                      : 'bg-slate-900 border-slate-800 text-slate-400'
+                  }`}
+                >
+                  <span className="w-2.5 h-2.5 rounded-full border border-slate-600" style={{ backgroundColor: bg.color }} />
+                  <span>{bg.name}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Fit & Crop Mode Picker */}
+      {(options.mode === 'preset' || options.mode === 'passport' || (options.mode === 'custom' && !options.lockAspect)) && (
         <div className="space-y-2 pt-2 border-t border-slate-800">
           <label className="block text-xs font-semibold text-slate-300 flex items-center gap-1.5">
             <Crop className="w-3.5 h-3.5 text-cyan-400" />
@@ -366,7 +471,13 @@ export const ControlsPanel: React.FC<ControlsPanelProps> = ({
         className="w-full gradient-button py-4 rounded-2xl font-bold text-slate-950 text-base flex items-center justify-center gap-2 shadow-xl shadow-cyan-500/20 disabled:opacity-50"
       >
         <Zap className="w-5 h-5 fill-slate-950" />
-        <span>{isProcessing ? t.processingText : t.processBtn}</span>
+        <span>
+          {isProcessing
+            ? t.processingText
+            : fileCount > 1
+            ? `معالجة وتجهيز جميع الصور (${fileCount}) الآن ➔`
+            : t.processBtn}
+        </span>
       </button>
 
     </div>

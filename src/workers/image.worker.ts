@@ -9,6 +9,7 @@ export interface WorkerInputMessage {
   quality: number; // 0.1 to 1.0
   fitMode?: 'stretch' | 'contain' | 'cover';
   backgroundColor?: string;
+  maxSizeKB?: number; // Target max file size (e.g. 100 for < 100KB passport documents)
 }
 
 export interface WorkerOutputMessage {
@@ -24,7 +25,17 @@ export interface WorkerOutputMessage {
 }
 
 self.onmessage = async (e: MessageEvent<WorkerInputMessage>) => {
-  const { id, file, targetWidth, targetHeight, format, quality, fitMode = 'stretch', backgroundColor = '#FFFFFF' } = e.data;
+  const {
+    id,
+    file,
+    targetWidth,
+    targetHeight,
+    format,
+    quality,
+    fitMode = 'stretch',
+    backgroundColor = '#FFFFFF',
+    maxSizeKB,
+  } = e.data;
 
   try {
     const originalSize = file.size;
@@ -79,10 +90,30 @@ self.onmessage = async (e: MessageEvent<WorkerInputMessage>) => {
 
     imageBitmap.close();
 
-    const blob = await canvas.convertToBlob({
+    let currentQuality = quality;
+    let blob = await canvas.convertToBlob({
       type: format,
-      quality: quality,
+      quality: currentQuality,
     });
+
+    // Intelligent iterative compression if target max file size is set
+    if (maxSizeKB && blob.size > maxSizeKB * 1024 && format !== 'image/png') {
+      let low = 0.1;
+      let high = currentQuality;
+      for (let step = 0; step < 4 && blob.size > maxSizeKB * 1024; step++) {
+        currentQuality = Math.max(0.1, (low + high) / 2);
+        const candidateBlob = await canvas.convertToBlob({
+          type: format,
+          quality: currentQuality,
+        });
+        blob = candidateBlob;
+        if (candidateBlob.size > maxSizeKB * 1024) {
+          high = currentQuality;
+        } else {
+          break;
+        }
+      }
+    }
 
     const newSize = blob.size;
 
